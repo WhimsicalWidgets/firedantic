@@ -12,3 +12,11 @@ class ModelNotFoundError(ModelError):
 
 class CollectionNotDefined(ModelError):
     """Raised when the model collection is not defined."""
+
+
+class VectorFieldNotDefined(ModelError):
+    """Raised when a vector field is not defined in the model."""
+
+
+class VectorFieldAmbiguous(ModelError):
+    """Raised when there are multiple vector fields and none is specified."""

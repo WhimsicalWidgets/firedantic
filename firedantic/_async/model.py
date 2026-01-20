@@ -1,4 +1,5 @@
 from abc import ABC
+from enum import Enum
 from logging import getLogger
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
@@ -11,6 +12,8 @@ from google.cloud.firestore_v1 import (
 )
 from google.cloud.firestore_v1.async_query import AsyncQuery
 from google.cloud.firestore_v1.async_transaction import AsyncTransaction
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.vector import Vector
 
 import firedantic.operators as op
 from firedantic import async_truncate_collection
@@ -20,7 +23,10 @@ from firedantic.exceptions import (
     CollectionNotDefined,
     InvalidDocumentID,
     ModelNotFoundError,
+    VectorFieldAmbiguous,
+    VectorFieldNotDefined,
 )
+from firedantic.utils import classproperty
 
 TAsyncBareModel = TypeVar("TAsyncBareModel", bound="AsyncBareModel")
 TAsyncBareSubModel = TypeVar("TAsyncBareSubModel", bound="AsyncBareSubModel")
@@ -66,6 +72,10 @@ class AsyncBareModel(pydantic.BaseModel, ABC):
 
     Implements basic functionality for Pydantic models, such as save, delete, find etc.
     """
+
+    model_config = pydantic.ConfigDict(
+        ignored_types=(classproperty,), arbitrary_types_allowed=True
+    )
 
     __collection__: Optional[str] = None
     __document_id__: str
@@ -243,6 +253,114 @@ class AsyncBareModel(pydantic.BaseModel, ABC):
             return model[0]
         except IndexError as e:
             raise ModelNotFoundError(f"No '{cls.__name__}' found") from e
+
+    @classmethod
+    async def vector_search(
+        cls: Type[TAsyncBareModel],
+        query_vector: Vector,
+        limit: int,
+        distance_measure: DistanceMeasure,
+        vector_field: Optional[Union[str, Enum]] = None,
+        filter_: Optional[Dict[str, Union[str, dict]]] = None,
+        distance_result_field: Optional[str] = None,
+        transaction: Optional[AsyncTransaction] = None,
+    ) -> List[TAsyncBareModel]:
+        """
+        Returns a list of models from the database based on a vector search.
+
+        :param query_vector: The vector to search for.
+        :param limit: Maximum results to return.
+        :param distance_measure: The distance measure to use.
+        :param vector_field: The field to search for the vector. If not specified, it will
+            be automatically resolved if the model has exactly one vector field.
+        :param filter_: The filter criteria.
+        :param distance_result_field: Optional field to store the distance result.
+        :param transaction: Optional transaction to use.
+        :return: List of found models.
+        :raise VectorFieldNotDefined: If no vector fields are defined in the model.
+        :raise VectorFieldAmbiguous: If multiple vector fields are found and none is specified.
+        """
+        vector_field = cls._resolve_vector_field(vector_field)
+        query: Union[AsyncQuery, AsyncCollectionReference] = cls._get_col_ref()
+        if filter_:
+            for key, value in filter_.items():
+                query = cls._add_filter(query, key, value)
+
+        vector_query = query.find_nearest(
+            vector_field=vector_field,
+            query_vector=query_vector,
+            limit=limit,
+            distance_measure=distance_measure,
+            distance_result_field=distance_result_field,
+        )
+
+        def _cls(doc_id: str, data: Dict[str, Any]) -> TAsyncBareModel:
+            if cls.__document_id__ in data:
+                logger.warning(
+                    "%s document ID %s contains conflicting %s in data with value %s",
+                    cls.__name__,
+                    doc_id,
+                    cls.__document_id__,
+                    data[cls.__document_id__],
+                )
+            data[cls.__document_id__] = doc_id
+            model = cls(**data)
+            setattr(model, cls.__document_id__, doc_id)
+            return model
+
+        return [
+            _cls(doc.id, doc_dict)
+            async for doc in vector_query.stream(transaction=transaction)  # type: ignore
+            if (doc_dict := doc.to_dict()) is not None
+        ]
+
+    @classmethod
+    def _get_vector_fields(cls) -> List[str]:
+        """
+        Returns a list of fields that are annotated as Vector.
+        """
+        return [
+            name
+            for name, field in cls.model_fields.items()
+            if field.annotation is Vector
+        ]
+
+    @classmethod
+    def get_vector_fields_enum(cls) -> Type[Enum]:
+        """
+        Returns an Enum of vector fields for this model.
+        """
+        fields = cls._get_vector_fields()
+        return Enum(f"{cls.__name__}VectorFields", {f: f for f in fields})  # type: ignore
+
+    @classproperty
+    def VectorFields(cls) -> Type[Enum]:  # type: ignore[no-redef]
+        """
+        Returns an Enum of vector fields for this model.
+        """
+        return cls.get_vector_fields_enum()
+
+    @classmethod
+    def _resolve_vector_field(
+        cls, vector_field: Optional[Union[str, Enum]] = None
+    ) -> str:
+        """
+        Resolves the vector field to use for search.
+        """
+        if vector_field:
+            if isinstance(vector_field, Enum):
+                return str(vector_field.value)
+            return vector_field
+
+        fields = cls._get_vector_fields()
+        if len(fields) == 0:
+            raise VectorFieldNotDefined(f"No vector fields defined in {cls.__name__}")
+        if len(fields) > 1:
+            raise VectorFieldAmbiguous(
+                f"Multiple vector fields found in {cls.__name__}: {', '.join(fields)}. "
+                "Please specify which one to use."
+            )
+        return fields[0]
 
     @classmethod
     async def get_by_doc_id(

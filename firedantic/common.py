@@ -1,8 +1,26 @@
-from typing import Literal, NamedTuple, Tuple, Union
+from typing import Annotated, Literal, NamedTuple, Optional, Tuple, Union
+
+from google.cloud.firestore_v1.vector import Vector
+from pydantic import BeforeValidator
 
 OrderDirection = Union[Literal["ASCENDING"], Literal["DESCENDING"]]
 
-IndexField = NamedTuple("IndexField", [("name", str), ("order", OrderDirection)])
+FiredanticVector = Annotated[
+    Vector,
+    BeforeValidator(lambda v: v if isinstance(v, Vector) else Vector(v)),
+]
+
+
+class VectorConfig(NamedTuple):
+    dimension: int
+    flat: bool = True
+
+
+class IndexField(NamedTuple):
+    name: str
+    order: Optional[OrderDirection] = None
+    vector_config: Optional[VectorConfig] = None
+
 
 IndexDefinition = NamedTuple(
     "IndexDefinition", [("query_scope", str), ("fields", Tuple[IndexField, ...])]

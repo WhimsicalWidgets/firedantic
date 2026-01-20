@@ -1,4 +1,6 @@
 # flake8: noqa
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+
 from firedantic._async.helpers import truncate_collection as async_truncate_collection
 from firedantic._async.indexes import (
     set_up_composite_indexes as async_set_up_composite_indexes,
@@ -31,7 +33,8 @@ from firedantic._sync.model import (
     SubModel,
 )
 from firedantic._sync.ttl_policy import set_up_ttl_policies
-from firedantic.common import collection_group_index, collection_index
+from firedantic.common import FiredanticVector as Vector
+from firedantic.common import VectorConfig, collection_group_index, collection_index
 from firedantic.configurations import (
     CONFIGURATIONS,
     configure,
