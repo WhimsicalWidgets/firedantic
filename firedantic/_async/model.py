@@ -11,6 +11,8 @@ from google.cloud.firestore_v1 import (
 )
 from google.cloud.firestore_v1.async_query import AsyncQuery
 from google.cloud.firestore_v1.async_transaction import AsyncTransaction
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.vector import Vector
 
 import firedantic.operators as op
 from firedantic import async_truncate_collection
@@ -243,6 +245,62 @@ class AsyncBareModel(pydantic.BaseModel, ABC):
             return model[0]
         except IndexError as e:
             raise ModelNotFoundError(f"No '{cls.__name__}' found") from e
+
+    @classmethod
+    async def vector_search(
+        cls: Type[TAsyncBareModel],
+        vector_field: str,
+        query_vector: Vector,
+        limit: int,
+        distance_measure: DistanceMeasure,
+        filter_: Optional[Dict[str, Union[str, dict]]] = None,
+        distance_result_field: Optional[str] = None,
+        transaction: Optional[AsyncTransaction] = None,
+    ) -> List[TAsyncBareModel]:
+        """
+        Returns a list of models from the database based on a vector search.
+
+        :param vector_field: The field to search for the vector.
+        :param query_vector: The vector to search for.
+        :param limit: Maximum results to return.
+        :param distance_measure: The distance measure to use.
+        :param filter_: The filter criteria.
+        :param distance_result_field: Optional field to store the distance result.
+        :param transaction: Optional transaction to use.
+        :return: List of found models.
+        """
+        query: Union[AsyncQuery, AsyncCollectionReference] = cls._get_col_ref()
+        if filter_:
+            for key, value in filter_.items():
+                query = cls._add_filter(query, key, value)
+
+        vector_query = query.find_nearest(
+            vector_field=vector_field,
+            query_vector=query_vector,
+            limit=limit,
+            distance_measure=distance_measure,
+            distance_result_field=distance_result_field,
+        )
+
+        def _cls(doc_id: str, data: Dict[str, Any]) -> TAsyncBareModel:
+            if cls.__document_id__ in data:
+                logger.warning(
+                    "%s document ID %s contains conflicting %s in data with value %s",
+                    cls.__name__,
+                    doc_id,
+                    cls.__document_id__,
+                    data[cls.__document_id__],
+                )
+            data[cls.__document_id__] = doc_id
+            model = cls(**data)
+            setattr(model, cls.__document_id__, doc_id)
+            return model
+
+        return [
+            _cls(doc.id, doc_dict)
+            async for doc in vector_query.stream(transaction=transaction)
+            if (doc_dict := doc.to_dict()) is not None
+        ]
 
     @classmethod
     async def get_by_doc_id(

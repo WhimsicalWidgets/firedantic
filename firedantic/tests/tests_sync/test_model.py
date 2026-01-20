@@ -35,12 +35,14 @@ TEST_PRODUCTS = [
 ]
 
 
+
 def test_save_model(configure_db, create_company) -> None:
     company = create_company()
 
     assert company.id is not None
     assert company.owner.first_name == "John"
     assert company.owner.last_name == "Doe"
+
 
 
 def test_delete_model(configure_db, create_company) -> None:
@@ -55,6 +57,7 @@ def test_delete_model(configure_db, create_company) -> None:
 
     with pytest.raises(ModelNotFoundError):
         Company.get_by_id(_id)
+
 
 
 def test_find_one(configure_db, create_company) -> None:
@@ -81,8 +84,11 @@ def test_find_one(configure_db, create_company) -> None:
     first_asc = Company.find_one(order_by=[("owner.first_name", Query.ASCENDING)])
     assert first_asc.owner.first_name == "Bar"
 
-    first_desc = Company.find_one(order_by=[("owner.first_name", Query.DESCENDING)])
+    first_desc = Company.find_one(
+        order_by=[("owner.first_name", Query.DESCENDING)]
+    )
     assert first_desc.owner.first_name == "Foo"
+
 
 
 def test_find(configure_db, create_company, create_product) -> None:
@@ -115,6 +121,7 @@ def test_find(configure_db, create_company, create_product) -> None:
         Product.find({"product_id": {"<>": "a"}})
 
 
+
 def test_find_not_in(configure_db, create_company) -> None:
     ids = ["1234555-1", "1234567-8", "2131232-4", "4124432-4"]
     for company_id in ids:
@@ -135,6 +142,7 @@ def test_find_not_in(configure_db, create_company) -> None:
         assert company.company_id in ("2131232-4", "4124432-4")
 
 
+
 def test_find_array_contains(configure_db, create_todolist) -> None:
     list_1 = create_todolist("list_1", ["Work", "Eat", "Sleep"])
     create_todolist("list_2", ["Learn Python", "Walk the dog"])
@@ -142,6 +150,7 @@ def test_find_array_contains(configure_db, create_todolist) -> None:
     found = TodoList.find({"items": {op.ARRAY_CONTAINS: "Eat"}})
     assert len(found) == 1
     assert found[0].name == list_1.name
+
 
 
 def test_find_array_contains_any(configure_db, create_todolist) -> None:
@@ -153,6 +162,7 @@ def test_find_array_contains_any(configure_db, create_todolist) -> None:
     assert len(found) == 2
     for lst in found:
         assert lst.name in (list_1.name, list_2.name)
+
 
 
 def test_find_limit(configure_db, create_company) -> None:
@@ -167,6 +177,7 @@ def test_find_limit(configure_db, create_company) -> None:
     assert len(companies_2) == 2
 
 
+
 def test_find_order_by(configure_db, create_company) -> None:
     companies_and_owners = [
         {"company_id": "1234555-1", "last_name": "A", "first_name": "A"},
@@ -179,9 +190,13 @@ def test_find_order_by(configure_db, create_company) -> None:
         {"company_id": "4124432-5", "last_name": "D", "first_name": "H"},
     ]
 
-    companies_and_owners = [create_company(**item) for item in companies_and_owners]
+    companies_and_owners = [
+        create_company(**item) for item in companies_and_owners
+    ]
 
-    companies_ascending = Company.find(order_by=[("owner.first_name", Query.ASCENDING)])
+    companies_ascending = Company.find(
+        order_by=[("owner.first_name", Query.ASCENDING)]
+    )
     assert companies_ascending == companies_and_owners
 
     companies_descending = Company.find(
@@ -211,6 +226,7 @@ def test_find_order_by(configure_db, create_company) -> None:
     assert companies_and_owners == lastname_ascending_firstname_ascending
 
 
+
 def test_find_offset(configure_db, create_company) -> None:
     ids_and_lastnames = (
         ("1234555-1", "A"),
@@ -228,6 +244,7 @@ def test_find_offset(configure_db, create_company) -> None:
     assert len(companies_ascending) == 2
 
 
+
 def test_get_by_id(configure_db, create_company) -> None:
     c: Company = create_company(company_id="1234567-8")
 
@@ -242,9 +259,11 @@ def test_get_by_id(configure_db, create_company) -> None:
     assert c_2.owner.first_name == "John"
 
 
+
 def test_get_by_empty_str_id(configure_db) -> None:
     with pytest.raises(ModelNotFoundError):
         Company.get_by_id("")
+
 
 
 def test_missing_collection(configure_db) -> None:
@@ -253,6 +272,7 @@ def test_missing_collection(configure_db) -> None:
 
     with pytest.raises(CollectionNotDefined):
         User(name="John").save()
+
 
 
 def test_model_aliases(configure_db) -> None:
@@ -269,6 +289,7 @@ def test_model_aliases(configure_db) -> None:
     user_from_db = User.get_by_id(user.id)
     assert user_from_db.first_name == "John"
     assert user_from_db.city == "Helsinki"
+
 
 
 @pytest.mark.parametrize(
@@ -312,6 +333,7 @@ def test_models_with_valid_custom_id(configure_db, model_id) -> None:
     found.delete()
 
 
+
 @pytest.mark.parametrize(
     "model_id",
     [
@@ -337,6 +359,7 @@ def test_models_with_invalid_custom_id(configure_db, model_id: str) -> None:
         Product.get_by_id(model_id)
 
 
+
 def test_truncate_collection(configure_db, create_company) -> None:
     create_company(company_id="1234567-8")
     create_company(company_id="1234567-9")
@@ -347,6 +370,7 @@ def test_truncate_collection(configure_db, create_company) -> None:
     Company.truncate_collection()
     new_companies = Company.find({})
     assert len(new_companies) == 0
+
 
 
 def test_custom_id_model(configure_db) -> None:
@@ -361,6 +385,7 @@ def test_custom_id_model(configure_db) -> None:
     assert m.bar == "bar"
 
 
+
 def test_custom_id_conflict(configure_db) -> None:
     CustomIDConflictModel(foo="foo", bar="bar").save()
 
@@ -370,6 +395,7 @@ def test_custom_id_conflict(configure_db) -> None:
     m = models[0]
     assert m.foo != "foo"
     assert m.bar == "bar"
+
 
 
 def test_model_id_persistency(configure_db) -> None:
@@ -383,6 +409,7 @@ def test_model_id_persistency(configure_db) -> None:
     assert len(CustomIDConflictModel.find({})) == 1
 
 
+
 def test_bare_model_document_id_persistency(configure_db) -> None:
     c = CustomIDModel(bar="bar")  # type: ignore
     c.save()
@@ -394,15 +421,18 @@ def test_bare_model_document_id_persistency(configure_db) -> None:
     assert len(CustomIDModel.find({})) == 1
 
 
+
 def test_bare_model_get_by_empty_doc_id(configure_db) -> None:
     with pytest.raises(ModelNotFoundError):
         CustomIDModel.get_by_doc_id("")
+
 
 
 def test_extra_fields(configure_db) -> None:
     CustomIDModelExtra(foo="foo", bar="bar", baz="baz").save()  # type: ignore
     with pytest.raises(ValidationError):
         CustomIDModel.find({})
+
 
 
 def test_company_stats(configure_db, create_company) -> None:
@@ -425,12 +455,14 @@ def test_company_stats(configure_db, create_company) -> None:
     assert stats.sales == 101
 
 
+
 def test_subcollection_model_safety(configure_db) -> None:
     """
     Ensure you shouldn't be able to use unprepared subcollection models accidentally
     """
     with pytest.raises(CollectionNotDefined):
         UserStats.find({})
+
 
 
 def test_get_user_purchases(configure_db) -> None:
@@ -442,6 +474,7 @@ def test_get_user_purchases(configure_db) -> None:
     us(id="2021", purchases=42).save()
 
     assert get_user_purchases(u.id) == 42
+
 
 
 def test_reload(configure_db) -> None:
@@ -460,6 +493,7 @@ def test_reload(configure_db) -> None:
     another_user = User(name="Another")
     with pytest.raises(ModelNotFoundError):
         another_user.reload()
+
 
 
 def test_save_with_exclude_none(configure_db) -> None:
@@ -483,6 +517,7 @@ def test_save_with_exclude_none(configure_db) -> None:
     assert data == {"name": "Foo", "photo_url": None}
 
 
+
 def test_save_with_exclude_unset(configure_db) -> None:
     p = Profile(photo_url=None)
     p.save(exclude_unset=True)
@@ -504,6 +539,7 @@ def test_save_with_exclude_unset(configure_db) -> None:
     assert data == {"name": "", "photo_url": None}
 
 
+
 def test_update_city_in_transaction(configure_db) -> None:
     """
     Test updating a model in a transaction. Test case from README.
@@ -512,7 +548,9 @@ def test_update_city_in_transaction(configure_db) -> None:
     """
 
     @transactional
-    def decrement_population(transaction: Transaction, city: City, decrement: int = 1):
+    def decrement_population(
+        transaction: Transaction, city: City, decrement: int = 1
+    ):
         city.reload(transaction=transaction)
         city.population = max(0, city.population - decrement)
         city.save(transaction=transaction)
@@ -527,6 +565,7 @@ def test_update_city_in_transaction(configure_db) -> None:
     assert c.population == 0
 
 
+
 def test_delete_in_transaction(configure_db) -> None:
     """
     Test deleting a model in a transaction.
@@ -535,7 +574,9 @@ def test_delete_in_transaction(configure_db) -> None:
     """
 
     @transactional
-    def delete_in_transaction(transaction: Transaction, profile_id: str) -> None:
+    def delete_in_transaction(
+        transaction: Transaction, profile_id: str
+    ) -> None:
         """Deletes a Profile in a transaction."""
         profile = Profile.get_by_id(profile_id, transaction=transaction)
         profile.delete(transaction=transaction)
@@ -549,6 +590,7 @@ def test_delete_in_transaction(configure_db) -> None:
 
     with pytest.raises(ModelNotFoundError):
         Profile.get_by_id(p.id)
+
 
 
 def test_update_model_in_transaction(configure_db) -> None:
@@ -575,6 +617,7 @@ def test_update_model_in_transaction(configure_db) -> None:
     update_in_transaction(t, p.id, name="Bar")
     p.reload()
     assert p.name == "Bar"
+
 
 
 def test_update_submodel_in_transaction(configure_db) -> None:

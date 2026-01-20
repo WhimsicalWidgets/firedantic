@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Iterable, List, Optional, Set, Type
+from typing import Any, Dict, Iterable, List, Optional, Set, Type
 
 from google.api_core.operation_async import AsyncOperation
 from google.cloud.firestore_admin_v1 import (
@@ -13,7 +13,7 @@ from google.cloud.firestore_admin_v1.services.firestore_admin import (
 
 from firedantic._async.model import AsyncBareModel
 from firedantic._async.ttl_policy import set_up_ttl_policies
-from firedantic.common import IndexDefinition, IndexField
+from firedantic.common import IndexDefinition, IndexField, VectorConfig
 
 logger = getLogger("firedantic")
 
@@ -41,12 +41,18 @@ async def get_existing_indexes(
         if not raw_index.name.startswith(path):
             continue
         query_scope = raw_index.query_scope.name
-        fields = tuple(
-            IndexField(name=f.field_path, order=f.order.name)  # noqa
-            for f in raw_index.fields
-            if f.field_path != "__name__"
-        )
-        indexes.add(IndexDefinition(query_scope=query_scope, fields=fields))
+        fields = []
+        for f in raw_index.fields:
+            if f.field_path == "__name__":
+                continue
+            if f.vector_config:
+                vector_config = VectorConfig(
+                    dimension=f.vector_config.dimension, flat=True
+                )
+                fields.append(IndexField(name=f.field_path, vector_config=vector_config))
+            else:
+                fields.append(IndexField(name=f.field_path, order=f.order.name))
+        indexes.add(IndexDefinition(query_scope=query_scope, fields=tuple(fields)))
     return indexes
 
 
@@ -63,16 +69,24 @@ async def create_composite_index(
     :param path: Index path in Firestore.
     :return: Operation that was launched to create the index.
     """
+    fields = []
+    for field in index.fields:
+        f_dict: Dict[str, Any] = {"field_path": field.name}
+        if field.order is not None:
+            f_dict["order"] = field.order
+        if field.vector_config is not None:
+            f_dict["vector_config"] = {"dimension": field.vector_config.dimension}
+            if field.vector_config.flat:
+                f_dict["vector_config"]["flat"] = {}
+        fields.append(f_dict)
+
     request = CreateIndexRequest(
         {
             "parent": path,
             "index": Index(
                 {
                     "query_scope": index.query_scope,
-                    "fields": [
-                        {"field_path": field[0], "order": field[1]}
-                        for field in list(index.fields)
-                    ],
+                    "fields": fields,
                 }
             ),
         }
