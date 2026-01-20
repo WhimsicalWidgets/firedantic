@@ -298,7 +298,7 @@ class AsyncBareModel(pydantic.BaseModel, ABC):
 
         return [
             _cls(doc.id, doc_dict)
-            async for doc in vector_query.stream(transaction=transaction)
+            async for doc in vector_query.stream(transaction=transaction)  # type: ignore
             if (doc_dict := doc.to_dict()) is not None
         ]
 

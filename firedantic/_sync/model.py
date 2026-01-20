@@ -10,8 +10,8 @@ from google.cloud.firestore_v1 import (
     FieldFilter,
 )
 from google.cloud.firestore_v1.base_query import BaseQuery
-from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.transaction import Transaction
 from google.cloud.firestore_v1.vector import Vector
 
 import firedantic.operators as op
@@ -238,9 +238,7 @@ class BareModel(pydantic.BaseModel, ABC):
         :return: The model instance.
         :raise ModelNotFoundError: If the entry is not found.
         """
-        model = cls.find(
-            filter_, limit=1, order_by=order_by, transaction=transaction
-        )
+        model = cls.find(filter_, limit=1, order_by=order_by, transaction=transaction)
         try:
             return model[0]
         except IndexError as e:
@@ -298,7 +296,7 @@ class BareModel(pydantic.BaseModel, ABC):
 
         return [
             _cls(doc.id, doc_dict)
-            for doc in vector_query.stream(transaction=transaction)
+            for doc in vector_query.stream(transaction=transaction)  # type: ignore
             if (doc_dict := doc.to_dict()) is not None
         ]
 

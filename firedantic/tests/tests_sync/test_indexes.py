@@ -7,10 +7,10 @@ from google.cloud.firestore_admin_v1 import ListIndexesResponse
 from firedantic import (
     CONFIGURATIONS,
     Model,
-    set_up_composite_indexes,
-    set_up_composite_indexes_and_ttl_policies,
     collection_group_index,
     collection_index,
+    set_up_composite_indexes,
+    set_up_composite_indexes_and_ttl_policies,
 )
 from firedantic.common import IndexField
 from firedantic.tests.tests_sync.conftest import MockListIndexOperation
@@ -24,7 +24,6 @@ class BaseModelWithIndexes(Model):
     name: str
     status: int
     age: int
-
 
 
 def test_set_up_composite_index(mock_admin_client) -> None:
@@ -59,7 +58,6 @@ def test_set_up_composite_index(mock_admin_client) -> None:
     assert index.fields[1].order.name == Query.DESCENDING
 
 
-
 def test_set_up_collection_group_index(mock_admin_client) -> None:
     class ModelWithIndexes(BaseModelWithIndexes):
         __composite_indexes__ = (
@@ -88,7 +86,6 @@ def test_set_up_collection_group_index(mock_admin_client) -> None:
     assert len(index.fields) == 2
 
 
-
 def test_set_up_composite_indexes_and_policies(mock_admin_client) -> None:
     class ModelWithIndexes(BaseModelWithIndexes):
         __composite_indexes__ = (
@@ -110,7 +107,6 @@ def test_set_up_composite_indexes_and_policies(mock_admin_client) -> None:
 
     call_list = mock_admin_client.create_index.call_args_list
     assert len(call_list) == 1
-
 
 
 def test_set_up_many_composite_indexes(mock_admin_client) -> None:
@@ -139,7 +135,6 @@ def test_set_up_many_composite_indexes(mock_admin_client) -> None:
     assert len(result) == 3
 
 
-
 def test_set_up_indexes_model_without_indexes(mock_admin_client) -> None:
     class ModelWithoutIndexes(Model):
         __collection__ = "modelWithoutIndexes"
@@ -155,7 +150,6 @@ def test_set_up_indexes_model_without_indexes(mock_admin_client) -> None:
 
     call_list = mock_admin_client.create_index.call_args_list
     assert len(call_list) == 0
-
 
 
 def test_existing_indexes_are_skipped(mock_admin_client) -> None:
@@ -189,9 +183,7 @@ def test_existing_indexes_are_skipped(mock_admin_client) -> None:
             ]
         }
     )
-    mock_admin_client.list_indexes = Mock(
-        return_value=MockListIndexOperation([resp])
-    )
+    mock_admin_client.list_indexes = Mock(return_value=MockListIndexOperation([resp]))
 
     class ModelWithIndexes(BaseModelWithIndexes):
         __composite_indexes__ = (
@@ -211,7 +203,6 @@ def test_existing_indexes_are_skipped(mock_admin_client) -> None:
         client=mock_admin_client,
     )
     assert len(result) == 0
-
 
 
 def test_same_fields_in_another_collection(mock_admin_client) -> None:
@@ -235,9 +226,7 @@ def test_same_fields_in_another_collection(mock_admin_client) -> None:
             ]
         }
     )
-    mock_admin_client.list_indexes = Mock(
-        return_value=MockListIndexOperation([resp])
-    )
+    mock_admin_client.list_indexes = Mock(return_value=MockListIndexOperation([resp]))
 
     class ModelWithIndexes(BaseModelWithIndexes):
         __composite_indexes__ = (

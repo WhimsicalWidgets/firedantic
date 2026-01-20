@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Dict, Literal, NamedTuple, Optional, Tuple, Union
+from typing import Annotated, Literal, NamedTuple, Optional, Tuple, Union
 
 from google.cloud.firestore_v1.vector import Vector
 from pydantic import BeforeValidator

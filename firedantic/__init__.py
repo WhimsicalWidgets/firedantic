@@ -33,12 +33,8 @@ from firedantic._sync.model import (
     SubModel,
 )
 from firedantic._sync.ttl_policy import set_up_ttl_policies
-from firedantic.common import (
-    VectorConfig,
-    collection_group_index,
-    collection_index,
-)
 from firedantic.common import FiredanticVector as Vector
+from firedantic.common import VectorConfig, collection_group_index, collection_index
 from firedantic.configurations import (
     CONFIGURATIONS,
     configure,

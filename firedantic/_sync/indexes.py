@@ -49,7 +49,9 @@ def get_existing_indexes(
                 vector_config = VectorConfig(
                     dimension=f.vector_config.dimension, flat=True
                 )
-                fields.append(IndexField(name=f.field_path, vector_config=vector_config))
+                fields.append(
+                    IndexField(name=f.field_path, vector_config=vector_config)
+                )
             else:
                 fields.append(IndexField(name=f.field_path, order=f.order.name))
         indexes.add(IndexDefinition(query_scope=query_scope, fields=tuple(fields)))
